@@ -77,7 +77,9 @@ func (mngr *TestManager) deployMysql(ctx context.Context) {
 				EncodeDockerEnv("MYSQL_PASSWORD", DbPassword),
 			},
 		},
-		nil,
+		&container.HostConfig{
+			AutoRemove: true,
+		},
 		&network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				Network: {},

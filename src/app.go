@@ -96,6 +96,7 @@ func (app *App) deployContainer(ctx context.Context) error {
 			},
 		},
 		&container.HostConfig{
+			AutoRemove: true,
 			PortBindings: nat.PortMap{
 				"80/tcp": []nat.PortBinding{
 					{
