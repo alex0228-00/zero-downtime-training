@@ -35,22 +35,27 @@ func (c *ApiClient) HealthCheck() error {
 	return nil
 }
 
-func (c *ApiClient) CreateAsset(asset *Asset) error {
+func (c *ApiClient) CreateAsset(asset *Asset) (*Asset, error) {
 	body, err := json.Marshal(asset)
 	if err != nil {
-		return fmt.Errorf("failed to marshal asset: %w", err)
+		return nil, fmt.Errorf("failed to marshal asset: %w", err)
 	}
 
 	resp, err := http.Post(c.url("/api/asset"), "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		return fmt.Errorf("failed to create asset: %w", err)
+		return nil, fmt.Errorf("failed to create asset: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("create asset failed with status: %s", resp.Status)
+		return nil, fmt.Errorf("create asset failed with status: %s", resp.Status)
 	}
-	return nil
+
+	var created Asset
+	if err = json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		return nil, fmt.Errorf("failed to decode created asset: %w", err)
+	}
+	return &created, nil
 }
 
 func (c *ApiClient) ReadAsset(id string) (*Asset, error) {

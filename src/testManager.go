@@ -145,21 +145,22 @@ func (mngr *TestManager) testCURD(app *App) {
 	}
 
 	// create
-	mngr.rq.NoError(app.client.CreateAsset(asset))
+	created, err := app.client.CreateAsset(asset)
+	mngr.rq.NoError(err)
 
 	// read
-	read, err := app.client.ReadAsset(asset.ID)
+	read, err := app.client.ReadAsset(created.ID)
 	mngr.rq.NoError(err)
-	mngr.rq.EqualValues(asset, read)
+	mngr.rq.EqualValues(created, read)
 
 	// update
 	source := fmt.Sprintf("s-%s-updated", app.tag)
-	mngr.rq.NoError(app.client.UpdateAssetSourceByID(asset.ID, source))
+	mngr.rq.NoError(app.client.UpdateAssetSourceByID(created.ID, source))
 
-	read, err = app.client.ReadAsset(asset.ID)
+	read, err = app.client.ReadAsset(created.ID)
 	mngr.rq.NoError(err)
 	mngr.rq.Equal(read.Source, source)
 
 	// delete
-	mngr.rq.NoError(app.client.DeleteAsset(asset.ID))
+	mngr.rq.NoError(app.client.DeleteAsset(created.ID))
 }

@@ -23,7 +23,7 @@ paths:
             schema:
               $ref: '#/components/schemas/Asset'
       responses:
-        '201':
+        '200':
           description: Asset created
           content:
             application/json:
@@ -66,10 +66,6 @@ paths:
       responses:
         '200':
           description: Asset updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Asset'
 
     delete:
       summary: Delete an asset by ID

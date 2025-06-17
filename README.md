@@ -1,2 +1,2 @@
-# zero-downtime-trainning
+# zero-downtime-training
 
