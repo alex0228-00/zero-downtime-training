@@ -1,6 +1,9 @@
 package src
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 const (
 	EnvDBHost     = "DB_HOST"
@@ -10,6 +13,14 @@ const (
 
 	EnvDBSchema   = "DB_SCHEMA"
 	EnvServerPort = "SERVER_PORT"
+
+	DockerImageName    = "zero-downtime-training"
+	Network            = "zero-downtime-training"
+	MysqlContainerName = "zero-downtime-training-mysql"
+
+	DbUser     = "testuser"
+	DbPassword = "testpassword"
+	DbSchema   = "assets"
 )
 
 func GetEnvOrPanic(key string) string {
@@ -28,15 +39,6 @@ func GetEnvOrDefault(key, defaultValue string) string {
 	return value
 }
 
-type Asset struct {
-	ID     string
-	Name   string
-	Source string
-}
-
-type AssetManager interface {
-	CreateAsset(asset *Asset) error
-	ReadAsset(id string) (*Asset, error)
-	DeleteAsset(id string) error
-	UpdateAssetSourceByID(id, name string) error
+func EncodeDockerEnv(key, value string) string {
+	return fmt.Sprintf("%s=%s", key, value)
 }
