@@ -47,7 +47,7 @@ func (c *ApiClient) CreateAsset(asset *Asset) (*Asset, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("create asset failed with status: %s", resp.Status)
 	}
 
@@ -93,7 +93,7 @@ func (c *ApiClient) DeleteAsset(id string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("delete asset failed with status: %s", resp.Status)
 	}
 	return nil
