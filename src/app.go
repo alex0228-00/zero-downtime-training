@@ -1,11 +1,9 @@
-package test
+package src
 
 import (
 	"context"
 	"fmt"
 	"time"
-
-	"zero-downtime-training/src"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -14,9 +12,6 @@ import (
 )
 
 const (
-	DockerImageName = "zero-downtime-training"
-	Network         = "zero-downtime-training"
-
 	HealthCheckN        = 5
 	HealthCheckInterval = 5
 )
@@ -92,12 +87,12 @@ func (app *App) deployContainer(ctx context.Context) error {
 			},
 			Image: image,
 			Env: []string{
-				encodeDockerEnv(src.EnvDBHost, src.GetEnvOrDefault(src.EnvDBHost, "mysql")),
-				encodeDockerEnv(src.EnvDBPort, src.GetEnvOrDefault(src.EnvDBPort, "3306")),
-				encodeDockerEnv(src.EnvDBUser, src.GetEnvOrDefault(src.EnvDBUser, "testuser")),
-				encodeDockerEnv(src.EnvDBPassword, src.GetEnvOrDefault(src.EnvDBPassword, "testpassword")),
-				encodeDockerEnv(src.EnvDBSchema, src.GetEnvOrDefault(src.EnvDBSchema, "assets")),
-				encodeDockerEnv(src.EnvServerPort, "80"),
+				EncodeDockerEnv(EnvDBHost, MysqlContainerName),
+				EncodeDockerEnv(EnvDBPort, "3306"),
+				EncodeDockerEnv(EnvDBUser, DbUser),
+				EncodeDockerEnv(EnvDBPassword, DbPassword),
+				EncodeDockerEnv(EnvDBSchema, DbSchema),
+				EncodeDockerEnv(EnvServerPort, "80"),
 			},
 		},
 		&container.HostConfig{
@@ -128,8 +123,4 @@ func (app *App) deployContainer(ctx context.Context) error {
 
 	app.containerID = response.ID
 	return nil
-}
-
-func encodeDockerEnv(key, value string) string {
-	return fmt.Sprintf("%s=%s", key, value)
 }

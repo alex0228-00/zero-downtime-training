@@ -1,4 +1,4 @@
-package test
+package src
 
 import (
 	"testing"
@@ -13,17 +13,18 @@ import (
 func TestZeroDowntimeDeployment(t *testing.T) {
 	rq := require.New(t)
 
-	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	docker, err := client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithAPIVersionNegotiation(),
+	)
 	rq.NoError(err)
 
-	v1 := NewApp("8081", "v1", docker)
-	mngr := &TestManager{
-		rq:      rq,
-		current: v1,
-	}
+	mngr := &TestManager{rq: rq, docker: docker}
+	mngr.Init(t.Context())
 
 	// original version
-	mngr.DeployAppAndTest(v1)
+	v1 := NewApp("8081", "v1", docker)
+	mngr.DeployFirstVersion(v1)
 
 	// Stage 1: Change database schema
 	// v2 -> startup:  add new schema
