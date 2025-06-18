@@ -27,8 +27,13 @@ func NewTestManager(docker *DockerDeployer, rq *require.Assertions) *TestManager
 		logger: DefaultLogger.With(
 			zap.String("componenet", "TestManager"),
 		),
-		rq:    rq,
-		tests: []Tester{},
+		rq: rq,
+		tests: []Tester{
+			CreateByOldReadByNewTester(),
+			CreateByNewReadByOldTester(),
+			ReReadableTester(),
+			ReWritableTester(),
+		},
 	}
 }
 
@@ -129,4 +134,85 @@ func (mngr *TestManager) testCURD(app *App) {
 		zap.String("asset id", created.ID),
 	)
 	mngr.rq.NoError(app.client.DeleteAsset(created.ID))
+}
+
+func CreateByOldReadByNewTester() Tester {
+	return func(old, new *App, rq *require.Assertions) {
+		asset := &Asset{
+			ID:     uuid.New().String(),
+			Name:   fmt.Sprintf("create[%s]-read[%s]", old.tag, new.tag),
+			Source: fmt.Sprintf("s-create[%s]-read[%s]", old.tag, new.tag),
+		}
+
+		creatd, err := old.client.CreateAsset(asset)
+		rq.NoError(err)
+
+		read, err := new.client.ReadAsset(creatd.ID)
+		rq.NoError(err)
+		rq.EqualValues(creatd, read)
+	}
+}
+
+func CreateByNewReadByOldTester() Tester {
+	return func(old, new *App, rq *require.Assertions) {
+		asset := &Asset{
+			ID:     uuid.New().String(),
+			Name:   fmt.Sprintf("create[%s]-read[%s]", new.tag, old.tag),
+			Source: fmt.Sprintf("s-create[%s]-read[%s]", new.tag, old.tag),
+		}
+
+		creatd, err := new.client.CreateAsset(asset)
+		rq.NoError(err)
+
+		read, err := old.client.ReadAsset(creatd.ID)
+		rq.NoError(err)
+		rq.EqualValues(creatd, read)
+	}
+}
+
+func ReReadableTester() Tester {
+	var assets []*Asset
+	return func(old, new *App, rq *require.Assertions) {
+		for _, asset := range assets {
+			read, err := new.client.ReadAsset(asset.ID)
+			rq.NoError(err)
+			rq.EqualValues(asset, read)
+		}
+
+		asset := &Asset{
+			ID:     uuid.New().String(),
+			Name:   fmt.Sprintf("longExist1-%s", new.tag),
+			Source: fmt.Sprintf("s-longExist1-%s", new.tag),
+		}
+
+		creatd, err := new.client.CreateAsset(asset)
+		rq.NoError(err)
+
+		assets = append(assets, creatd)
+	}
+}
+
+func ReWritableTester() Tester {
+	var assets []*Asset
+	return func(old, new *App, rq *require.Assertions) {
+		for _, asset := range assets {
+			asset.Source = fmt.Sprintf("%s-%s", asset.Source, new.tag)
+			rq.NoError(new.client.UpdateAssetSourceByID(asset.ID, asset.Source))
+
+			read, err := new.client.ReadAsset(asset.ID)
+			rq.NoError(err)
+			rq.EqualValues(asset, read)
+		}
+
+		asset := &Asset{
+			ID:     uuid.New().String(),
+			Name:   fmt.Sprintf("longExist2-%s", new.tag),
+			Source: fmt.Sprintf("s-longExist2-%s", new.tag),
+		}
+
+		creatd, err := new.client.CreateAsset(asset)
+		rq.NoError(err)
+
+		assets = append(assets, creatd)
+	}
 }
