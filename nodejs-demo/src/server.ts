@@ -6,13 +6,16 @@ export class Server {
   constructor(private assetManager: IAssetManager, private port: number) {}
 
   async start() {
-    await this.assetManager.migration();
+    if (isProduction()) {
+      console.log("Running in production mode, start migration.");
+      await this.assetManager.migration();
+    }
 
     const app = express();
     this.registerHandlers(app);
 
     app.listen(this.port, "0.0.0.0", () => {
-      console.log(`Server is running at http://localhost:${this.port}`);
+      console.log(`Server is running at http://0.0.0.0:${this.port}`);
     });
   }
 
@@ -92,4 +95,8 @@ function logAndReturnError(
   const errorMessage = error instanceof Error ? error.message : "Unknown error";
   console.error(errorMessage);
   res.status(500).send({ error: `${message}: ${errorMessage}` });
+}
+
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
 }

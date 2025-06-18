@@ -8,6 +8,9 @@ test: build
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		$(IMAGE_NAME)
 
+docker-clean:
+	docker system prune -af --volumes
+
 clean-servers:
 	bash -c '\
 	for image in $$(docker images zero-downtime-training --format "{{.Repository}}:{{.Tag}}"); do \

@@ -28,8 +28,10 @@ func TestZeroDowntimeDeployment(t *testing.T) {
 	)
 	rq.NoError(err)
 
-	mngr := &TestManager{rq: rq, docker: docker}
-	mngr.Init(t.Context())
+	deployer := NewDeployer(docker)
+
+	mngr := NewTestManager(deployer, rq)
+	mngr.PrepareForTesting()
 
 	// original version
 	//
@@ -40,7 +42,7 @@ func TestZeroDowntimeDeployment(t *testing.T) {
 	//                 RW
 	//
 	v1 := NewApp("8081", "v1", docker)
-	mngr.DeployFirstVersion(v1)
+	mngr.DeployFirstVersionAndTest(v1)
 
 	// Stage 1: Change database schema
 	//

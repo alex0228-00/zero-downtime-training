@@ -3,128 +3,50 @@ package src
 import (
 	"context"
 	"fmt"
-	"io"
-	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 type Tester func(old, new *App, rq *require.Assertions)
 
 type TestManager struct {
-	docker           *client.Client
-	networkID        string
-	mysqlContainreID string
+	docker *DockerDeployer
+	logger *zap.Logger
+	rq     *require.Assertions
 
-	rq      *require.Assertions
 	current *App
-
-	tests []Tester
+	tests   []Tester
 }
 
-func (mngr *TestManager) Init(ctx context.Context) {
-	mngr.createDockerNetworkIfNotExist(ctx)
-	mngr.deployMysql(ctx)
-
-	// wait for mysql start
-	time.Sleep(10 * time.Second)
-}
-
-func (mngr *TestManager) createDockerNetworkIfNotExist(ctx context.Context) {
-	networks, err := mngr.docker.NetworkList(ctx, network.ListOptions{})
-	mngr.rq.NoError(err)
-
-	for _, nw := range networks {
-		if nw.Name == Network {
-			mngr.networkID = nw.ID
-			return
-		}
+func NewTestManager(docker *DockerDeployer, rq *require.Assertions) *TestManager {
+	return &TestManager{
+		docker: docker,
+		logger: DefaultLogger.With(
+			zap.String("componenet", "TestManager"),
+		),
+		rq:    rq,
+		tests: []Tester{},
 	}
-
-	resp, err := mngr.docker.NetworkCreate(ctx, Network, network.CreateOptions{})
-	mngr.rq.NoError(err)
-
-	mngr.networkID = resp.ID
 }
 
-func (mngr *TestManager) deployMysql(ctx context.Context) {
-	containers, err := mngr.docker.ContainerList(ctx, container.ListOptions{})
-	mngr.rq.NoError(err)
+func (mngr *TestManager) PrepareForTesting() {
+	ctx := context.Background()
+	mngr.rq.NoError(mngr.docker.CreateNetwork(ctx))
+	mngr.rq.NoError(mngr.docker.DeployMysql(ctx))
 
-	for _, c := range containers {
-		if strings.Contains(c.Names[0], MysqlContainerName) {
-			mngr.mysqlContainreID = c.ID
-			return
-		}
-	}
+	mngr.logger.Info("Waiting for MySQL to start...")
+	time.Sleep(5 * time.Second)
+}
 
-	mngr.rq.NoError(mngr.pullImageIfNotExist(ctx, "mysql:latest"))
-
-	response, err := mngr.docker.ContainerCreate(
-		context.Background(),
-		&container.Config{
-			Image: "mysql:latest",
-			ExposedPorts: nat.PortSet{
-				"3306/tcp": struct{}{},
-			},
-			Env: []string{
-				EncodeDockerEnv("MYSQL_ROOT_PASSWORD", "rootpwd"),
-				EncodeDockerEnv("MYSQL_DATABASE", DbSchema),
-				EncodeDockerEnv("MYSQL_USER", DbUser),
-				EncodeDockerEnv("MYSQL_PASSWORD", DbPassword),
-			},
-		},
-		&container.HostConfig{
-			AutoRemove: true,
-		},
-		&network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
-				Network: {},
-			},
-		},
-		nil,
-		MysqlContainerName,
+func (mngr *TestManager) DeployFirstVersionAndTest(app *App) {
+	mngr.logger.Info(
+		"Deploying first version",
+		zap.String("version", app.tag),
 	)
-	mngr.rq.NoError(err)
 
-	mngr.rq.NoError(mngr.docker.ContainerStart(ctx, response.ID, container.StartOptions{}))
-	mngr.mysqlContainreID = response.ID
-}
-
-func (mngr *TestManager) pullImageIfNotExist(ctx context.Context, imageName string) error {
-	images, err := mngr.docker.ImageList(ctx, image.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to list images: %w", err)
-	}
-
-	found := false
-	for _, img := range images {
-		if len(img.RepoTags) > 0 && img.RepoTags[0] == imageName {
-			found = true
-		}
-	}
-
-	if !found {
-		reader, err := mngr.docker.ImagePull(ctx, imageName, image.PullOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to pull image %s: %w", imageName, err)
-		}
-		defer reader.Close()
-
-		_, err = io.Copy(io.Discard, reader)
-		return fmt.Errorf("failed to read image pull response: %w", err)
-	}
-	return nil
-}
-
-func (mngr *TestManager) DeployFirstVersion(app *App) {
 	mngr.rq.NoError(app.Deploy())
 	mngr.testCURD(app)
 
@@ -132,35 +54,68 @@ func (mngr *TestManager) DeployFirstVersion(app *App) {
 }
 
 func (mngr *TestManager) RunZeroDowntimeDeploymentAndTest(newVersion *App) {
+	mngr.logger.Info(
+		"Running zero downtime deployment",
+		zap.String("newVersion", newVersion.tag),
+	)
+
 	mngr.rq.NoError(newVersion.Deploy())
+
 	mngr.testCURD(newVersion)
 
+	mngr.logger.Info(
+		"Running tests for zero downtime deployment",
+		zap.String("oldVersion", mngr.current.tag),
+		zap.String("newVersion", newVersion.tag),
+	)
 	for _, test := range mngr.tests {
 		test(mngr.current, newVersion, mngr.rq)
 	}
 
+	mngr.logger.Info(
+		"Stopping old version",
+		zap.String("version", mngr.current.tag),
+	)
 	mngr.rq.NoError(mngr.current.Stop())
 	mngr.current = newVersion
 }
 
 func (mngr *TestManager) testCURD(app *App) {
+	mngr.logger.Info("Running CURD tests", zap.String("version", app.tag))
+
 	asset := &Asset{
 		ID:     uuid.New().String(),
 		Name:   app.tag,
-		Source: fmt.Sprintf("s-%s", app.tag),
+		Source: fmt.Sprintf("source-%s", app.tag),
 	}
 
 	// create
+	mngr.logger.Info(
+		"Test creating new asset",
+		zap.String("version", app.tag),
+		zap.String("asset id", asset.ID),
+	)
 	created, err := app.client.CreateAsset(asset)
 	mngr.rq.NoError(err)
 
 	// read
+	mngr.logger.Info(
+		"Test reading asset",
+		zap.String("version", app.tag),
+		zap.String("asset id", created.ID),
+	)
 	read, err := app.client.ReadAsset(created.ID)
 	mngr.rq.NoError(err)
 	mngr.rq.EqualValues(created, read)
 
 	// update
-	source := fmt.Sprintf("s-%s-updated", app.tag)
+	source := fmt.Sprintf("source-%s-updated", app.tag)
+	mngr.logger.Info(
+		"Test updating asset source",
+		zap.String("version", app.tag),
+		zap.String("asset id", created.ID),
+		zap.String("new source", source),
+	)
 	mngr.rq.NoError(app.client.UpdateAssetSourceByID(created.ID, source))
 
 	read, err = app.client.ReadAsset(created.ID)
@@ -168,5 +123,10 @@ func (mngr *TestManager) testCURD(app *App) {
 	mngr.rq.Equal(read.Source, source)
 
 	// delete
+	mngr.logger.Info(
+		"Test deleting asset",
+		zap.String("version", app.tag),
+		zap.String("asset id", created.ID),
+	)
 	mngr.rq.NoError(app.client.DeleteAsset(created.ID))
 }
