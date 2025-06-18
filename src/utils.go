@@ -20,7 +20,7 @@ const (
 
 	DbUser     = "testuser"
 	DbPassword = "testpassword"
-	DbSchema   = "assets"
+	DbSchema   = "zero-downtime-training"
 )
 
 func GetEnvOrPanic(key string) string {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -31,6 +32,9 @@ type TestManager struct {
 func (mngr *TestManager) Init(ctx context.Context) {
 	mngr.createDockerNetworkIfNotExist(ctx)
 	mngr.deployMysql(ctx)
+
+	// wait for mysql start
+	time.Sleep(10 * time.Second)
 }
 
 func (mngr *TestManager) createDockerNetworkIfNotExist(ctx context.Context) {
@@ -102,7 +106,7 @@ func (mngr *TestManager) pullImageIfNotExist(ctx context.Context, imageName stri
 
 	found := false
 	for _, img := range images {
-		if img.RepoTags[0] == imageName {
+		if len(img.RepoTags) > 0 && img.RepoTags[0] == imageName {
 			found = true
 		}
 	}

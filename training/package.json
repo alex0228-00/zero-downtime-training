@@ -5,15 +5,19 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "docker:build:v1": "docker build --build-arg VERSION=v1 -t zero-downtime-training:v1 ."
+    "docker:build:all": "for v in v1 v2; do docker build --build-arg VERSION=$v -t zero-downtime-training:$v .; done",
+    "docker:build:v1": "docker build --build-arg VERSION=v1 -t zero-downtime-training:v1 .",
+    "docker:build:v2": "docker build --build-arg VERSION=v2 -t zero-downtime-training:v2 ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@types/uuid": "^10.0.0",
     "express": "^5.1.0",
-    "mysql2": "^3.14.1"
+    "mysql2": "^3.14.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
