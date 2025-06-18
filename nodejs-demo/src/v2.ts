@@ -1,7 +1,7 @@
 import mysql from "mysql2/promise";
-import { IAsset } from "./server";
 import { AssetManager as V1 } from "./v1";
 import * as uuid from 'uuid';
+import { IAsset } from "./assets";
 
 export class AssetManager extends V1 {
   constructor(pool: mysql.Pool) {

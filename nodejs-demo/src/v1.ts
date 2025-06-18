@@ -1,4 +1,4 @@
-import { IAsset, IAssetManager } from "./server";
+import { IAsset, IAssetManager } from "./assets";
 import mysql from "mysql2/promise";
 
 export class AssetManager extends IAssetManager {
