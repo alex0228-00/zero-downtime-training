@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 import { AssetManager as V1 } from "./v1";
-import * as uuid from 'uuid';
+import * as uuid from "uuid";
 import { IAsset } from "./assets";
 
 export class AssetManager extends V1 {
@@ -50,23 +50,21 @@ export class AssetManager extends V1 {
   async updateSourceByID(id: string, source: string): Promise<void> {
     await this.withTransaction(async (conn) => {
       await this.insertSourceIfNotExist(conn, source);
-      await this.pool.query(
-        `
-          UPDATE assets 
-          SET source = ? 
-          WHERE id = ?
-        `,
-        [source, id]
-      );
       await conn.query(
         `
           UPDATE assets a
-          JOIN sources s 
-          ON a.source = s.name and a.id = ?
+          JOIN (
+            SELECT id, name, ? as asset_id 
+            FROM sources 
+            WHERE name = ?
+          ) AS s
+          ON 
+            s.asset_id = a.id
           SET 
-              a.source_id = s.id;
+            a.source_id = s.id,
+            a.source = s.name;
         `,
-        [source, source, id]
+        [id, source]
       );
     });
   }

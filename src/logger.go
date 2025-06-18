@@ -7,10 +7,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const (
-	LogConnectionId = "conn_id"
-)
-
 var atomicLevel = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 
 func SetLogLevel(l zapcore.Level) {

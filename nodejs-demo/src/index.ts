@@ -2,6 +2,9 @@ import { IAssetManager } from "./assets";
 import { Server } from "./server";
 import { AssetManager as V1 } from "./v1";
 import { AssetManager as V2 } from "./v2";
+import { AssetManager as V3 } from "./v3";
+import { AssetManager as V4 } from "./v4";
+import { AssetManager as V5 } from "./v5";
 import mysql from "mysql2/promise";
 
 async function main() {
@@ -22,6 +25,15 @@ async function main() {
       break;
     case "v2":
       assetMngr = new V2(pool);
+      break;
+    case "v3":
+      assetMngr = new V3(pool);
+      break;
+    case "v4":
+      assetMngr = new V4(pool);
+      break;
+    case "v5":
+      assetMngr = new V5(pool);
       break;
     default:
       throw new Error(`Unsupported APP_VERSION: ${process.env.APP_VERSION}`);
