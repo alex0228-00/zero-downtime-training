@@ -1,31 +1,21 @@
 import express, { Request, Response } from "express";
 
-export interface IAsset {
-  id: string;
-  name: string;
-  source: string;
-}
-
-export interface IAssetManager {
-  migration(): Promise<void>;
-  createAsset(asset: IAsset): Promise<IAsset>;
-  readAssetByID(id: string): Promise<IAsset | null>;
-  updateSourceByID(id: string, source: string): Promise<void>;
-  deleteAssetByID(id: string): Promise<void>;
-}
+import { IAsset, IAssetManager } from "./assets";
 
 export class Server {
-  constructor(private assetManager: IAssetManager) {}
+  constructor(private assetManager: IAssetManager, private port: number) {}
 
   async start() {
-    await this.assetManager.migration();
+    if (isProduction()) {
+      console.log("Running in production mode, start migration.");
+      await this.assetManager.migration();
+    }
 
     const app = express();
     this.registerHandlers(app);
 
-    const port = process.env.SERVER_PORT || 80;
-    app.listen(port, () => {
-      console.log(`Server is running at http://localhost:${port}`);
+    app.listen(this.port, "0.0.0.0", () => {
+      console.log(`Server is running at http://0.0.0.0:${this.port}`);
     });
   }
 
@@ -46,24 +36,30 @@ export class Server {
   async handleCreateAsset(req: Request, res: Response): Promise<void> {
     try {
       const asset: IAsset = req.body;
+
+      console.log(`Creating asset: ${JSON.stringify(asset)}`);
       const created = await this.assetManager.createAsset(asset);
       res.status(200).json(created);
     } catch (error) {
-      res.status(500).send({ error: "Failed to create asset" });
+      logAndReturnError(res, "Failed to create asset", error);
     }
   }
 
   async handleReadAssetByID(req: Request, res: Response): Promise<void> {
     try {
       const id = req.params.id;
+
+      console.log(`Reading asset from db, id=${id}`);
       const asset = await this.assetManager.readAssetByID(id);
+
+      console.log(`Asset read: ${JSON.stringify(asset)}`);
       if (asset) {
         res.status(200).send(asset);
       } else {
         res.status(404).send({ error: "Asset not found" });
       }
     } catch (error) {
-      res.status(500).send({ error: "Failed to read asset" });
+      logAndReturnError(res, "Failed to read asset", error);
     }
   }
 
@@ -71,10 +67,12 @@ export class Server {
     try {
       const id = req.params.id;
       const { source } = req.body;
+
+      console.log(`Updating asset source, id=${id}, source=${source}`);
       await this.assetManager.updateSourceByID(id, source);
       res.status(200).send({ message: "Asset source updated successfully" });
     } catch (error) {
-      res.status(500).send({ error: "Failed to update asset source" });
+      logAndReturnError(res, "Failed to update asset", error);
     }
   }
 
@@ -84,7 +82,21 @@ export class Server {
       await this.assetManager.deleteAssetByID(id);
       res.status(200).send({ message: "Asset deleted successfully" });
     } catch (error) {
-      res.status(500).send({ error: "Failed to delete asset" });
+      logAndReturnError(res, "Failed to delete asset", error);
     }
   }
+}
+
+function logAndReturnError(
+  res: Response,
+  message: string,
+  error: unknown
+): void {
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
+  console.error(errorMessage);
+  res.status(500).send({ error: `${message}: ${errorMessage}` });
+}
+
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
 }
