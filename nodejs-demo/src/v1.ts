@@ -30,7 +30,7 @@ export class AssetManager extends IAssetManager {
   async readAssetByID(id: string): Promise<IAsset | null> {
     const [rows] = await this.pool.query(
       `
-        SELECT * 
+        SELECT id, name, source 
         FROM assets 
         WHERE id = ?
       `,
